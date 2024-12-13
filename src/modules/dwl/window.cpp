@@ -109,6 +109,11 @@ void Window::handle_layout(const uint32_t layout) {
 }
 
 void Window::handle_frame() {
+  if (title_.empty()) {
+    bar_.window.get_style_context()->add_class("empty");
+  } else {
+    bar_.window.get_style_context()->remove_class("empty");
+  }
   label_.set_markup(waybar::util::rewriteString(
       fmt::format(
         fmt::runtime(format_),
