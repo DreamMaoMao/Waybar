@@ -17,6 +17,11 @@ Addressed by *dwl/tags*
 	default: 9 ++
 	The number of tags that should be displayed. Max 32.
 
+*hide-unused-tag*: ++
+	typeof: bool ++
+	default: false ++
+	Hide unused tags.
+
 *tag-labels*: ++
 	typeof: array ++
 	The label to display for each tag.
@@ -30,7 +35,8 @@ Addressed by *dwl/tags*
 
 ```
 "dwl/tags": {
-	"num-tags": 5
+	"num-tags": 5,
+  "hide-unused-tag":true
 }
 ```
 
