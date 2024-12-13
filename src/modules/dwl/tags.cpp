@@ -21,11 +21,16 @@ wl_array tags, layouts;
 
 static uint num_tags = 0;
 
-static void toggle_visibility(void *data, zdwl_ipc_output_v2 *zdwl_output_v2) {
+std::vector<std::string> tag_labels;
+uint32_t maxTagsNum = 0;
+bool optionHideUnuseTag = false;
+bool hasAddOVbutton = false;
+
+void toggle_visibility(void *data, zdwl_ipc_output_v2 *zdwl_output_v2) {
   // Intentionally empty
 }
 
-static void active(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, uint32_t active) {
+void active(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, uint32_t active) {
   // Intentionally empty
 }
 
@@ -37,15 +42,15 @@ static void set_tag(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, uint32_t tag
                                                            : num_tags & ~(1 << tag);
 }
 
-static void set_layout_symbol(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, const char *layout) {
+void set_layout_symbol(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, const char *layout) {
   // Intentionally empty
 }
 
-static void title(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, const char *title) {
+void title(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, const char *title) {
   // Intentionally empty
 }
 
-static void dwl_frame(void *data, zdwl_ipc_output_v2 *zdwl_output_v2) {
+void dwl_frame(void *data, zdwl_ipc_output_v2 *zdwl_output_v2) {
   // Intentionally empty
 }
 
@@ -88,6 +93,39 @@ static void handle_global_remove(void *data, struct wl_registry *registry, uint3
 static const wl_registry_listener registry_listener_impl = {.global = handle_global,
                                                             .global_remove = handle_global_remove};
 
+
+void Tags::add_button(uint32_t tag) {
+    uint inser_pos = 0;
+    std::string label = tag == 888 ? "OVERVIEW":tag_labels[tag];
+
+    std::string templable;
+    uint lable_num;
+    for (auto &button : buttons_) {
+      templable = button.get_label();
+      lable_num = templable == "OVERVIEW" ? 888 : std::stoi(templable);
+      if(lable_num < (tag + 1)) {
+        inser_pos++;
+      }
+    }
+
+    buttons_.emplace(buttons_.begin() + (inser_pos), label);
+
+    auto &button = buttons_[inser_pos];
+
+    button.set_relief(Gtk::RELIEF_NONE);
+    box_.pack_start(button, false, false, 0);
+    for (size_t i = 0; i < buttons_.size(); ++i) {
+      box_.reorder_child(buttons_[i], i);
+    }
+
+    if (!config_["disable-click"].asBool()) {
+      button.signal_clicked().connect(
+          sigc::bind(sigc::mem_fun(*this, &Tags::handle_primary_clicked), 1<<tag));
+      button.signal_button_press_event().connect(
+          sigc::bind(sigc::mem_fun(*this, &Tags::handle_button_press), 1<<tag));
+    }
+}
+
 Tags::Tags(const std::string &id, const waybar::Bar &bar, const Json::Value &config)
     : waybar::AModule(config, "tags", id, false, false),
       status_manager_{nullptr},
@@ -97,7 +135,6 @@ Tags::Tags(const std::string &id, const waybar::Bar &bar, const Json::Value &con
       output_status_{nullptr} {
   struct wl_display *display = Client::inst()->wl_display;
   struct wl_registry *registry = wl_display_get_registry(display);
-
   wl_registry_add_listener(registry, &registry_listener_impl, this);
   wl_display_roundtrip(display);
 
@@ -114,14 +151,17 @@ Tags::Tags(const std::string &id, const waybar::Bar &bar, const Json::Value &con
   if (!id.empty()) {
     box_.get_style_context()->add_class(id);
   }
-  box_.get_style_context()->add_class(MODULE_CLASS);
   event_box_.add(box_);
+
+  optionHideUnuseTag =
+      config["hide-unused-tag"].isBool() ? config["hide-unused-tag"].asBool()  : false;
 
   // Default to 9 tags, cap at 32
   const uint32_t num_tags =
       config["num-tags"].isUInt() ? std::min<uint32_t>(32, config_["num-tags"].asUInt()) : 9;
-
-  std::vector<std::string> tag_labels(num_tags);
+  maxTagsNum = num_tags;
+  
+  tag_labels.resize(num_tags);
   for (uint32_t tag = 0; tag < num_tags; ++tag) {
     tag_labels[tag] = std::to_string(tag + 1);
   }
@@ -132,19 +172,12 @@ Tags::Tags(const std::string &id, const waybar::Bar &bar, const Json::Value &con
     }
   }
 
-  uint32_t i = 1;
-  for (const auto &tag_label : tag_labels) {
-    Gtk::Button &button = buttons_.emplace_back(tag_label);
-    button.set_relief(Gtk::RELIEF_NONE);
-    box_.pack_start(button, false, false, 0);
-    if (!config_["disable-click"].asBool()) {
-      button.signal_clicked().connect(
-          sigc::bind(sigc::mem_fun(*this, &Tags::handle_primary_clicked), i));
-      button.signal_button_press_event().connect(
-          sigc::bind(sigc::mem_fun(*this, &Tags::handle_button_press), i));
+  if (!optionHideUnuseTag) {
+    uint32_t i = 1; 
+    while (i <= maxTagsNum) {
+      add_button(maxTagsNum-i);
+      i++;
     }
-    button.show();
-    i <<= 1;
   }
 
   struct wl_output *output = gdk_wayland_monitor_get_wl_output(bar_.output->monitor->gobj());
@@ -156,6 +189,9 @@ Tags::Tags(const std::string &id, const waybar::Bar &bar, const Json::Value &con
 }
 
 Tags::~Tags() {
+  if(output_status_) {
+      zdwl_ipc_output_v2_destroy(output_status_);
+  }
   if (status_manager_) {
     zdwl_ipc_manager_v2_destroy(status_manager_);
   }
@@ -176,25 +212,72 @@ bool Tags::handle_button_press(GdkEventButton *event_button, uint32_t tag) {
 }
 
 void Tags::handle_view_tags(uint32_t tag, uint32_t state, uint32_t clients, uint32_t focused) {
-  // First clear all occupied state
-  auto &button = buttons_[tag];
-  if (clients) {
-    button.get_style_context()->add_class("occupied");
-  } else {
-    button.get_style_context()->remove_class("occupied");
+  bool find = false;
+  if(!hasAddOVbutton && tag == 888) {
+    add_button(tag);
+    hasAddOVbutton = true;
   }
 
-  if (state & TAG_ACTIVE) {
-    button.get_style_context()->add_class("focused");
-  } else {
-    button.get_style_context()->remove_class("focused");
+  if (optionHideUnuseTag) {
+    std::string templable;
+    for (auto &button : buttons_) {
+      templable = button.get_label();
+      if (std::to_string(tag+1) == templable ||(tag == 888 && templable == "OVERVIEW")) {
+        find = true;
+        break;
+      }
+    }
+
+    if(!find && ((state & TAG_ACTIVE) || (state & TAG_URGENT) || clients)) {
+      add_button(tag);
+    }
   }
 
-  if (state & TAG_URGENT) {
-    button.get_style_context()->add_class("urgent");
-  } else {
-    button.get_style_context()->remove_class("urgent");
+  for (auto &button : buttons_) {
+    std::string lable = button.get_label();
+    if(tag == 888 && lable != "OVERVIEW") {
+      button.hide();
+      continue;
+    } else if(tag == 888 && lable == "OVERVIEW") {
+      button.get_style_context()->add_class("focused");
+      button.show();
+      continue;
+    } else if(tag != 888 && lable == "OVERVIEW") {
+      button.get_style_context()->remove_class("focused");
+      button.hide();
+    }
+
+    if(lable != std::to_string(tag+1))
+      continue;
+
+    if (clients) {
+      button.get_style_context()->add_class("occupied");
+      button.show();
+    } else {
+      button.get_style_context()->remove_class("occupied");
+    }
+
+    if (state & TAG_ACTIVE) {
+      button.get_style_context()->add_class("focused");
+      button.show();
+    } else {
+      button.get_style_context()->remove_class("focused");
+    }
+
+    if (state & TAG_URGENT) {
+      button.get_style_context()->add_class("urgent");
+      button.show();
+    } else {
+      button.get_style_context()->remove_class("urgent");
+    }
+
+    if (optionHideUnuseTag && !(state & TAG_ACTIVE) && !(state & TAG_URGENT) && !clients) {
+      button.hide();
+    } else if(!optionHideUnuseTag) {
+      button.show();
+    }
   }
+
 }
 
 } /* namespace waybar::modules::dwl */

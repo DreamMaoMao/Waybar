@@ -19,6 +19,7 @@ class Tags : public waybar::AModule {
   void handle_view_tags(uint32_t tag, uint32_t state, uint32_t clients, uint32_t focused);
 
   void handle_primary_clicked(uint32_t tag);
+  void add_button(uint32_t tag);
   bool handle_button_press(GdkEventButton *event_button, uint32_t tag);
 
   struct zdwl_ipc_manager_v2 *status_manager_;
