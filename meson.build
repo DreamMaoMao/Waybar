@@ -12,8 +12,8 @@ project(
 
 compiler = meson.get_compiler('cpp')
 
-cpp_args = []
-cpp_link_args = []
+cpp_args = ['-g']
+cpp_link_args = ['-g']
 
 if get_option('libcxx')
     cpp_args += ['-stdlib=libc++']
