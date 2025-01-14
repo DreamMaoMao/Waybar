@@ -103,13 +103,20 @@ auto Window::update() -> void {
 
 auto Window::getActiveWorkspace() -> Workspace {
   const auto workspace = gIPC->getSocket1JsonReply("activeworkspace");
-  assert(workspace.isObject());
-  return Workspace::parse(workspace);
+
+  if (workspace.isObject()) {
+    return Workspace::parse(workspace);
+  }
+
+  return {};
 }
 
 auto Window::getActiveWorkspace(const std::string& monitorName) -> Workspace {
   const auto monitors = gIPC->getSocket1JsonReply("monitors");
-  assert(monitors.isArray());
+  if (!monitors.isArray()) {
+    return {};
+  }
+
   auto monitor = std::find_if(monitors.begin(), monitors.end(),
                               [&](Json::Value monitor) { return monitor["name"] == monitorName; });
   if (monitor == std::end(monitors)) {
@@ -119,7 +126,9 @@ auto Window::getActiveWorkspace(const std::string& monitorName) -> Workspace {
   const int id = (*monitor)["activeWorkspace"]["id"].asInt();
 
   const auto workspaces = gIPC->getSocket1JsonReply("workspaces");
-  assert(workspaces.isArray());
+  if (!workspaces.isArray()) {
+    return {};
+  }
   auto workspace = std::find_if(workspaces.begin(), workspaces.end(),
                                 [&](Json::Value workspace) { return workspace["id"] == id; });
   if (workspace == std::end(workspaces)) {
@@ -153,48 +162,50 @@ void Window::queryActiveWorkspace() {
 
   if (workspace_.windows > 0) {
     const auto clients = gIPC->getSocket1JsonReply("clients");
-    assert(clients.isArray());
-    auto active_window = std::find_if(clients.begin(), clients.end(), [&](Json::Value window) {
-      return window["address"] == workspace_.last_window;
-    });
-    if (active_window == std::end(clients)) {
-      return;
-    }
+    if(clients.isArray()) {
 
-    window_data_ = WindowData::parse(*active_window);
-    updateAppIconName(window_data_.class_name, window_data_.initial_class_name);
-    std::vector<Json::Value> workspace_windows;
-    std::copy_if(clients.begin(), clients.end(), std::back_inserter(workspace_windows),
-                 [&](Json::Value window) {
-                   return window["workspace"]["id"] == workspace_.id && window["mapped"].asBool();
-                 });
-    swallowing_ = std::any_of(workspace_windows.begin(), workspace_windows.end(),
-                              [&](Json::Value window) { return !window["swallowing"].isNull(); });
-    std::vector<Json::Value> visible_windows;
-    std::copy_if(workspace_windows.begin(), workspace_windows.end(),
-                 std::back_inserter(visible_windows),
-                 [&](Json::Value window) { return !window["hidden"].asBool(); });
-    solo_ = 1 == std::count_if(visible_windows.begin(), visible_windows.end(),
-                               [&](Json::Value window) { return !window["floating"].asBool(); });
-    all_floating_ = std::all_of(visible_windows.begin(), visible_windows.end(),
-                                [&](Json::Value window) { return window["floating"].asBool(); });
-    fullscreen_ = window_data_.fullscreen;
+      auto active_window = std::find_if(clients.begin(), clients.end(), [&](Json::Value window) {
+        return window["address"] == workspace_.last_window;
+      });
+      if (active_window == std::end(clients)) {
+        return;
+      }
 
-    // Fullscreen windows look like they are solo
-    if (fullscreen_) {
-      solo_ = true;
-    }
+      window_data_ = WindowData::parse(*active_window);
+      updateAppIconName(window_data_.class_name, window_data_.initial_class_name);
+      std::vector<Json::Value> workspace_windows;
+      std::copy_if(clients.begin(), clients.end(), std::back_inserter(workspace_windows),
+                   [&](Json::Value window) {
+                     return window["workspace"]["id"] == workspace_.id && window["mapped"].asBool();
+                   });
+      swallowing_ = std::any_of(workspace_windows.begin(), workspace_windows.end(),
+                                [&](Json::Value window) { return !window["swallowing"].isNull(); });
+      std::vector<Json::Value> visible_windows;
+      std::copy_if(workspace_windows.begin(), workspace_windows.end(),
+                   std::back_inserter(visible_windows),
+                   [&](Json::Value window) { return !window["hidden"].asBool(); });
+      solo_ = 1 == std::count_if(visible_windows.begin(), visible_windows.end(),
+                                 [&](Json::Value window) { return !window["floating"].asBool(); });
+      all_floating_ = std::all_of(visible_windows.begin(), visible_windows.end(),
+                                  [&](Json::Value window) { return window["floating"].asBool(); });
+      fullscreen_ = window_data_.fullscreen;
 
-    // Grouped windows have a tab bar and therefore don't look fullscreen or solo
-    if (window_data_.grouped) {
-      fullscreen_ = false;
-      solo_ = false;
-    }
+      // Fullscreen windows look like they are solo
+      if (fullscreen_) {
+        solo_ = true;
+      }
 
-    if (solo_) {
-      solo_class_ = window_data_.class_name;
-    } else {
-      solo_class_ = "";
+      // Grouped windows have a tab bar and therefore don't look fullscreen or solo
+      if (window_data_.grouped) {
+        fullscreen_ = false;
+        solo_ = false;
+      }
+
+      if (solo_) {
+        solo_class_ = window_data_.class_name;
+      } else {
+        solo_class_ = "";
+      }
     }
   } else {
     window_data_ = WindowData{};
