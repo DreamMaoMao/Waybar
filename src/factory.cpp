@@ -36,6 +36,11 @@
 #include "modules/hyprland/window.hpp"
 #include "modules/hyprland/workspaces.hpp"
 #endif
+#ifdef HAVE_NIRI                       
+#include "modules/niri/language.hpp"   
+#include "modules/niri/window.hpp"     
+#include "modules/niri/workspaces.hpp" 
+#endif
 #if defined(__FreeBSD__) || defined(__linux__)
 #include "modules/battery.hpp"
 #endif
@@ -206,6 +211,19 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name,
       return new waybar::modules::hyprland::Workspaces(id, bar_, config_[name]);
     }
 #endif
+
+#ifdef HAVE_NIRI
+    if (ref == "niri/language") {
+      return new waybar::modules::niri::Language(id, bar_, config_[name]);
+    }
+    if (ref == "niri/window") {
+      return new waybar::modules::niri::Window(id, bar_, config_[name]);
+    }
+    if (ref == "niri/workspaces") {
+      return new waybar::modules::niri::Workspaces(id, bar_, config_[name]);
+    }
+#endif
+
     if (ref == "idle_inhibitor") {
       return new waybar::modules::IdleInhibitor(id, bar_, config_[name]);
     }

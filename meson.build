@@ -13,7 +13,7 @@ project(
 compiler = meson.get_compiler('cpp')
 
 cpp_args = ['-g']
-cpp_link_args = ['-g']
+cpp_link_args = ['-g']                                     
 
 if get_option('libcxx')
     cpp_args += ['-stdlib=libc++']
@@ -196,6 +196,21 @@ man_files = files(
 )
 
 inc_dirs = ['include']
+
+if get_option('niri')                       
+    add_project_arguments('-DHAVE_NIRI', language: 'cpp')                             
+    src_files += files(                     
+        'src/modules/niri/backend.cpp',     
+        'src/modules/niri/language.cpp',    
+        'src/modules/niri/window.cpp',      
+        'src/modules/niri/workspaces.cpp',  
+    )                                       
+    man_files += files(                     
+        'man/waybar-niri-language.5.scd',   
+        'man/waybar-niri-window.5.scd',     
+        'man/waybar-niri-workspaces.5.scd', 
+    )                                       
+endif  
 
 if is_linux
     add_project_arguments('-DHAVE_CPU_LINUX', language: 'cpp')
