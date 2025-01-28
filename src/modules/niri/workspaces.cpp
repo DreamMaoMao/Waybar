@@ -53,6 +53,7 @@ void Workspaces::doUpdate() {
 
   // Add buttons for new workspaces, update existing ones.
   for (const auto &ws : my_workspaces) {
+
     auto bit = buttons_.find(ws["id"].asUInt64());
     auto &button = bit == buttons_.end() ? addButton(ws) : bit->second;
     auto style_context = button.get_style_context();
@@ -109,7 +110,11 @@ void Workspaces::doUpdate() {
       else
         button.hide();
     } else {
-      button.show();
+      const auto *property = alloutputs ? "is_focused" : "is_active";
+      if (config_["hide-empty"].asBool() && ws["active_window_id"].isNull() && !ws[property].asBool())
+        button.hide();
+      else
+        button.show();
     }
   }
 
