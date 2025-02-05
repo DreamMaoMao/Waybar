@@ -13,7 +13,7 @@ project(
 compiler = meson.get_compiler('cpp')
 
 cpp_args = ['-g']
-cpp_link_args = ['-g']                                     
+cpp_link_args = ['-g']
 
 if get_option('libcxx')
     cpp_args += ['-stdlib=libc++']
@@ -68,8 +68,8 @@ is_netbsd = host_machine.system() == 'netbsd'
 is_openbsd = host_machine.system() == 'openbsd'
 
 thread_dep = dependency('threads')
-fmt = dependency('fmt', version : ['>=8.1.1'], fallback : ['fmt', 'fmt_dep'])
-spdlog = dependency('spdlog', version : ['>=1.10.0'], fallback : ['spdlog', 'spdlog_dep'], default_options : ['external_fmt=enabled'])
+fmt = dependency('fmt', version : ['>=8.1.1','<=10.2.0'], fallback : ['fmt', 'fmt_dep'])
+spdlog = dependency('spdlog', version : ['>=1.10.0','<=1.13.0'], fallback : ['spdlog', 'spdlog_dep'], default_options : ['external_fmt=enabled'])
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 wayland_protos = dependency('wayland-protocols')
@@ -197,20 +197,20 @@ man_files = files(
 
 inc_dirs = ['include']
 
-if get_option('niri')                       
-    add_project_arguments('-DHAVE_NIRI', language: 'cpp')                             
-    src_files += files(                     
-        'src/modules/niri/backend.cpp',     
-        'src/modules/niri/language.cpp',    
-        'src/modules/niri/window.cpp',      
-        'src/modules/niri/workspaces.cpp',  
-    )                                       
-    man_files += files(                     
-        'man/waybar-niri-language.5.scd',   
-        'man/waybar-niri-window.5.scd',     
-        'man/waybar-niri-workspaces.5.scd', 
-    )                                       
-endif  
+if get_option('niri')
+    add_project_arguments('-DHAVE_NIRI', language: 'cpp')
+    src_files += files(
+        'src/modules/niri/backend.cpp',
+        'src/modules/niri/language.cpp',
+        'src/modules/niri/window.cpp',
+        'src/modules/niri/workspaces.cpp',
+    )
+    man_files += files(
+        'man/waybar-niri-language.5.scd',
+        'man/waybar-niri-window.5.scd',
+        'man/waybar-niri-workspaces.5.scd',
+    )
+endif
 
 if is_linux
     add_project_arguments('-DHAVE_CPU_LINUX', language: 'cpp')
