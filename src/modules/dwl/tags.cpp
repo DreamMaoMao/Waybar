@@ -96,13 +96,13 @@ static const wl_registry_listener registry_listener_impl = {.global = handle_glo
 
 void Tags::add_button(uint32_t tag) {
     uint inser_pos = 0;
-    std::string label = tag == 888 ? "OVERVIEW":tag_labels[tag];
+    std::string label = tag == ~0 ? "OVERVIEW":tag_labels[tag];
 
     std::string templable;
     uint lable_num;
     for (auto &button : buttons_) {
       templable = button.get_label();
-      lable_num = templable == "OVERVIEW" ? 888 : std::stoi(templable);
+      lable_num = templable == "OVERVIEW" ? ~0 : std::stoi(templable);
       if(lable_num < (tag + 1)) {
         inser_pos++;
       }
@@ -213,7 +213,7 @@ bool Tags::handle_button_press(GdkEventButton *event_button, uint32_t tag) {
 
 void Tags::handle_view_tags(uint32_t tag, uint32_t state, uint32_t clients, uint32_t focused) {
   bool find = false;
-  if(!hasAddOVbutton && tag == 888) {
+  if(!hasAddOVbutton && tag == ~0) {
     add_button(tag);
     hasAddOVbutton = true;
   }
@@ -222,7 +222,7 @@ void Tags::handle_view_tags(uint32_t tag, uint32_t state, uint32_t clients, uint
     std::string templable;
     for (auto &button : buttons_) {
       templable = button.get_label();
-      if (std::to_string(tag+1) == templable ||(tag == 888 && templable == "OVERVIEW")) {
+      if (std::to_string(tag+1) == templable ||(tag == ~0 && templable == "OVERVIEW")) {
         find = true;
         break;
       }
@@ -235,14 +235,14 @@ void Tags::handle_view_tags(uint32_t tag, uint32_t state, uint32_t clients, uint
 
   for (auto &button : buttons_) {
     std::string lable = button.get_label();
-    if(tag == 888 && lable != "OVERVIEW") {
+    if(tag == ~0 && lable != "OVERVIEW") {
       button.hide();
       continue;
-    } else if(tag == 888 && lable == "OVERVIEW") {
+    } else if(tag == ~0 && lable == "OVERVIEW") {
       button.get_style_context()->add_class("focused");
       button.show();
       continue;
-    } else if(tag != 888 && lable == "OVERVIEW") {
+    } else if(tag != ~0 && lable == "OVERVIEW") {
       button.get_style_context()->remove_class("focused");
       button.hide();
     }
