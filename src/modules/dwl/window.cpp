@@ -109,6 +109,11 @@ void Window::handle_layout_symbol(const char *layout_symbol) {
 void Window::handle_layout(const uint32_t layout) { layout_ = layout; }
 
 void Window::handle_frame() {
+  if (title_.empty()) {
+    box_.set_visible(false);
+  } else {
+    box_.set_visible(true);
+  }
   label_.set_markup(waybar::util::rewriteString(
       fmt::format(fmt::runtime(format_), fmt::arg("title", title_),
                   fmt::arg("layout", layout_symbol_), fmt::arg("app_id", appid_)),
