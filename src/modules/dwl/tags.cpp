@@ -37,6 +37,9 @@ static void set_tag(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, uint32_t tag
 
   num_tags = (state & ZDWL_IPC_OUTPUT_V2_TAG_STATE_ACTIVE) ? num_tags | (1 << tag)
                                                            : num_tags & ~(1 << tag);
+  
+  // Check if all tags are active
+  static_cast<Tags *>(data)->update_visibility();
 }
 
 static void set_layout_symbol(void *data, zdwl_ipc_output_v2 *zdwl_output_v2, const char *layout) {
@@ -128,6 +131,60 @@ void Tags::add_button(uint32_t tag) {
         sigc::bind(sigc::mem_fun(*this, &Tags::handle_primary_clicked), 1 << tag));
     button.signal_button_press_event().connect(
         sigc::bind(sigc::mem_fun(*this, &Tags::handle_button_press), 1 << tag));
+  }
+}
+
+void Tags::add_overview_button() {
+  if (!overview_button_) {
+      overview_button_ = Gtk::make_managed<Gtk::Button>("overview"); // 使用Gtk::make_managed
+      overview_button_->set_relief(Gtk::RELIEF_NONE);
+      box_.pack_start(*overview_button_, false, false, 0);
+  }
+  overview_button_->get_style_context()->add_class("overview");
+  overview_button_->show();
+}
+
+void Tags::remove_overview_button() {
+  if (overview_button_ && overview_button_->get_parent() == &box_) {
+      overview_button_->hide();
+  }
+}
+
+void Tags::update_visibility() {
+  bool all_tags_active = (num_tags == ((1 << num_counts) - 1));
+  
+  if (all_tags_active) {
+    // all tags are active, hide all tags buttons and show overview button
+    for (auto& button : buttons_) {
+      button.hide();
+    }
+    add_overview_button();
+  } else {
+    // not all tags are active, hide overview button
+    remove_overview_button();
+    
+    // update visibility of each tag button
+    for (auto& button : buttons_) {
+      std::string label = button.get_label();
+      uint32_t tag = get_label_position(label);
+      if (tag == UINT32_MAX) continue;
+      
+      // get tag state (we need to store this information)
+      auto state = tag_states_[tag];
+      bool has_clients = tag_clients_[tag] > 0;
+      
+      // determine whether to show the button
+      // 1. tag is active
+      // 2. has clients
+      // 3. is urgent tag
+      // 4. hide_vacant_ is false
+      bool should_show = (state & TAG_ACTIVE) || 
+                        has_clients || 
+                        (state & TAG_URGENT) ||
+                        !hide_vacant_;
+      
+      button.set_visible(should_show);
+    }
   }
 }
 
@@ -224,6 +281,9 @@ void Tags::handle_view_tags(uint32_t tag, uint32_t state, uint32_t clients, uint
   std::string label;
   uint32_t position = UINT32_MAX;
 
+  tag_states_[tag] = state;
+  tag_clients_[tag] = clients;
+
   for (auto &added_button : buttons_) {
     label = added_button.get_label();
     position = get_label_position(label);
@@ -243,31 +303,25 @@ void Tags::handle_view_tags(uint32_t tag, uint32_t state, uint32_t clients, uint
 
     if (clients) {
       button.get_style_context()->add_class("occupied");
-      button.set_visible(true);
     } else {
       button.get_style_context()->remove_class("occupied");
     }
 
     if (state & TAG_ACTIVE) {
       button.get_style_context()->add_class("focused");
-      button.set_visible(true);
     } else {
       button.get_style_context()->remove_class("focused");
     }
 
     if (state & TAG_URGENT) {
       button.get_style_context()->add_class("urgent");
-      button.set_visible(true);
     } else {
       button.get_style_context()->remove_class("urgent");
     }
-
-    if (hide_vacant_ && !(state & TAG_ACTIVE) && !(state & TAG_URGENT) && !clients) {
-      button.set_visible(false);
-    } else {
-      button.set_visible(true);
-    }
   }
+  
+  // update visibility of all buttons
+  update_visibility();
 }
 
 } /* namespace waybar::modules::dwl */

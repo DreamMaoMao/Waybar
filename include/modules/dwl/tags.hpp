@@ -17,6 +17,9 @@ class Tags : public waybar::AModule {
 
   // Handlers for wayland events
   void handle_view_tags(uint32_t tag, uint32_t state, uint32_t clients, uint32_t focused);
+  void update_visibility();
+  void add_overview_button();
+  void remove_overview_button();
 
   void handle_primary_clicked(uint32_t tag);
   bool handle_button_press(GdkEventButton *event_button, uint32_t tag);
@@ -30,7 +33,10 @@ class Tags : public waybar::AModule {
   const waybar::Bar &bar_;
   Gtk::Box box_;
   std::vector<Gtk::Button> buttons_;
+  Gtk::Button* overview_button_ = nullptr;
   bool hide_vacant_;
+  std::unordered_map<uint32_t, uint32_t> tag_states_;
+  std::unordered_map<uint32_t, uint32_t> tag_clients_;
   struct zdwl_ipc_output_v2 *output_status_;
 };
 
